@@ -1,13 +1,15 @@
 use vars as v;
 use vars::{Var, VarSet};
 
-#[derive(Clone,PartialEq,Eq)]
+use std::borrow::Cow;
+
+#[derive(Clone,PartialEq,Eq, Debug)]
 pub enum Ty {
     Bool,
     Arrow(Box<Ty>, Box<Ty>),
 }
 
-#[derive(Clone,PartialEq,Eq)]
+#[derive(Clone,PartialEq,Eq, Debug)]
 pub enum Term {
     Var(v::Var),
     Abs(v::Var, Ty, Box<Term>),
@@ -16,13 +18,6 @@ pub enum Term {
     False,
     Not,
     If(Box<Term>, Box<Term>, Box<Term>),
-}
-
-pub trait Repr {
-    type Output;
-
-    fn to_repr(t: &Term) -> Self::Output;
-    fn from_repr(o: Self::Output) -> Term;
 }
 
 impl Ty {

@@ -1,0 +1,57 @@
+use std::str::FromStr;
+use toplevel::*;
+use vars as v;
+use vars::{Var};
+
+grammar;
+
+False: Term = {
+  <s:r"#F"> => Term::False
+};
+
+True: Term = {
+  <s:r"#T"> => Term::True
+};
+
+Var: String = {
+  <s:r"[a-zA-Z][a-zA-Z0-9-]*"> => s.into()
+};
+
+VarT: Term = {
+  <v: Var> => Term::Var(v)
+};
+
+Not: Term = {
+  <s:r"!"> => Term::Not
+};
+
+App: Term = {
+  "(" <f:Term> <x:Term> ")" => Term::App(Box::new(f), Box::new(x))
+};
+
+If: Term = {
+  "(" "if" <cond:Term> <b1:Term> <b2:Term> ")" => Term::If(Box::new(cond), Box::new(b1), Box::new(b2))
+};
+
+Abs: Term = {
+  "(" "lam" <v:Var>  ":" <ty:Ty> "." <t:Term> ")" => Term::Abs(v, ty, Box::new(t))
+};
+
+Ty: Ty = {
+  "#B" => Ty::Bool,
+  "(" <t1:Ty> "->" <t2:Ty> ")" => Ty::Arrow(Box::new(t1), Box::new(t2))
+};
+
+pub Term: Term = {
+  Abs,
+  App,
+  True,
+  False,
+  Not,
+  If,
+  VarT
+};
+
+pub TyP: Ty = {
+  Ty
+};

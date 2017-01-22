@@ -1,68 +1,57 @@
-use toplevel::{Term, Ty, Repr};
+use toplevel::{Term, Ty};
 use vars as v;
 use vars::{Var, VarSet};
 
-use pest::prelude::*;
+use parens;
+use parens::{parse_Term};
 
-impl_rdp! {
-    grammar! {
-        lp = { ["("]}
-        rp = { [")"]}
-        true_ = {["T"]}
-        false_ = {["F"] }
-        bool_ = { true_ | false_ }
-        not = { ["!"] }
-        lam = { ["lam"] }
-        sep = { [","]}
-        if_lit = { ["if"] }
-        ty = { ["B"] | (lp ~ ty ~ ["->"] ~ ty ~ rp) }
-        alpha = { ['a'..'z'] | ['A'..'Z']}
-        digit = {['0'..'9']}
-        var = @{ alpha ~ (alpha | digit | ["-"])* }
-        if_ = { lp ~ if_lit ~ term ~ sep ~ term ~ sep ~ term ~ rp}
-        app = { lp ~ term ~ [" "] ~ term ~ rp }
-        abs = {lp ~ lam ~ [" "] ~ var ~ [":"] ~ [" "] ~ ty ~ ["."] ~ [" "] ~ term ~ rp}
-        term = _{ var | abs | app | bool_ | not | if_ }
-        whitespace = {[" "]}
-    }
-}
+pub struct Parser;
 
 #[cfg(test)]
 mod test {
-    use pest::prelude::*;
-    use super::Rdp;
+    use parens;
 
-    fn np(s: &str) -> Rdp<StringInput> {
-        Rdp::new(StringInput::new(s))
+    #[test]
+    fn test_parse_term() {
+        let np = parens::parse_Term;
+
+        let mut p = np("T");
+        assert!(p.is_ok());
+
+        p = np("F");
+        assert!(p.is_ok());
+
+        p = np("x");
+        println!("{:?}", p);
+        assert!(p.is_ok());
+
+        p = np("(lam x: #B. x)");
+        assert!(p.is_ok());
+
+        p = np("(if #T #T #F)");
+        assert!(p.is_ok());
+
+        p = np("(if (! #T) #T #F)");
+        assert!(p.is_ok());
+
+        p = np("((lam x: (#B -> #B). (x #F)) !)");
+        assert!(p.is_ok());
+
+        p = np("! )");
+        assert!(p.is_err());
     }
 
     #[test]
-    fn test_basic_parse() {
-        let mut p = np("T");
-        assert!(p.true_());
+    fn test_parse_type() {
+        let pt = parens::parse_TyP;
 
-        p = np("F");
-        assert!(p.false_());
+        let mut t = pt("(#B -> #B)");
+        assert!(t.is_ok());
 
-        p = np("x");
-        assert!(p.var());
+        t = pt("#B");
+        assert!(t.is_ok());
 
-        p = np("(lam x: B. x)");
-        println!("{:?}", p.queue());
-        println!("{:?}", p.stack());
-        println!("{:?}", p.queue_with_captures());
-        assert!(p.abs());
-
-        p = np("(if T T F)");
-        assert!(p.if_());
-
-        p = np("(if (! T) T F)");
-        assert!(p.if_());
-
-        p = np("((lam x: (B -> B). (x F)) !)");
-        assert!(p.app());
-
-        p = np("! )");
-        assert!(p.app());
+        t = pt("((#B -> #B) -> (#B -> #B))");
+        assert!(t.is_ok());
     }
 }

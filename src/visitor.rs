@@ -93,8 +93,8 @@ impl<'a> Visitor<'a> for FVVisitor {
     }
 
     fn visit_abs(&mut self, var: &'a v::Var, ty: &'a Ty, body: &'a Term) {
-        self.vs.remove(var);
         walk_abs(self, var, ty, body);
+        self.vs.remove(var);
     }
 }
 
@@ -102,11 +102,23 @@ impl<'a> Visitor<'a> for FVVisitor {
 mod test {
     use super::{Visitor, FVVisitor};
     use toplevel::{Term, Ty};
+    use parens::{parse_Term, parse_TyP};
+
+    fn get(s: &str) -> Term {
+        parse_Term(s).unwrap()
+    }
 
     #[test]
     fn test_fv() {
         let mut fv = FVVisitor::new();
 
-        assert_eq!(fv.open_terms(&Term::Var("x".into())), hashset!{String::from("x")});
+        assert_eq!(fv.open_terms(&get("x")), hashset!{"x".into()});
+        assert_eq!(fv.open_terms(&get("(x x)")), hashset!{"x".into()});
+        assert_eq!(fv.open_terms(&get("(x y)")), hashset!{"x".into(), "y".into()});
+        assert_eq!(fv.open_terms(&get("#T")), hashset!{});
+        assert_eq!(fv.open_terms(&get("(if #T x y)")), hashset!{"x".into(), "y".into()});
+        assert_eq!(fv.open_terms(&get("((lam x: #B.x) y)")), hashset!{"y".into()});
+        assert!(fv.is_closed(&get("(lam x: #B.x)")));
+        assert!(!fv.is_closed(&get("(lam x: #B.(y x))")));
     }
 }

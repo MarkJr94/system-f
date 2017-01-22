@@ -2,7 +2,12 @@
 name = "system-f"
 version = "0.1.0"
 authors = ["Mark Sinclair II <125axel125@gmail.com>"]
+build = "build.rs"
 
 [dependencies]
 maplit = "0.1.4"
 pest = "0.4.1"
+lalrpop-util = "0.12.4"
+
+[build-dependencies]
+lalrpop = "0.12.4"

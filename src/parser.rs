@@ -1,11 +1,4 @@
-use toplevel::{Term, Ty};
-use vars as v;
-use vars::{Var, VarSet};
-
-use parens;
-use parens::{parse_Term};
-
-pub struct Parser;
+pub use parens::{parse_Term, parse_TyP};
 
 #[cfg(test)]
 mod test {

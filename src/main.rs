@@ -1,4 +1,5 @@
 #![recursion_limit = "200"]
+#![allow(dead_code)]
 
 #[macro_use]
 extern crate maplit;
@@ -10,14 +11,15 @@ mod vars;
 mod visitor;
 mod parser;
 mod parens;
+mod typecheck;
+mod debrujin;
 
 use std::io;
-use std::io::{stdin, stdout};
-use std::io::prelude::*;
+use std::io::{stdin};
 
 fn actually() -> io::Result<()> {
     let mut input = String::new();
-    let (mut i, mut o) = (stdin(), stdout());
+    let i = stdin();
 
     loop {
         try!(i.read_line(&mut input));
@@ -37,5 +39,5 @@ fn actually() -> io::Result<()> {
 }
 
 fn main() {
-    actually();
+    actually().unwrap()
 }

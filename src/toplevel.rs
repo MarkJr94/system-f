@@ -1,40 +1,22 @@
+pub use ast::term::Ty;
 use vars::{VarAbs, BasicVar};
-
-#[derive(Clone,PartialEq,Eq,Debug)]
-pub enum Ty {
-    Bool,
-    Arrow(Box<Ty>, Box<Ty>),
-    Bottom,
-}
 
 pub fn arrow(alpha: Ty, beta: Ty) -> Ty {
     Ty::Arrow(Box::new(alpha), Box::new(beta))
 }
 
 #[derive(Clone,PartialEq,Eq, Debug)]
-pub enum Term<V: VarAbs> {
-    Var(V::Var),
-    Abs(V::Var, Ty, Box<Term<V>>),
-    App(Box<Term<V>>, Box<Term<V>>),
+pub enum Term {
+    Var(String),
+    Abs(String, Ty, Box<Term>),
+    App(Box<Term>, Box<Term>),
     True,
     False,
     Not,
-    If(Box<Term<V>>, Box<Term<V>>, Box<Term<V>>),
+    If(Box<Term>, Box<Term>, Box<Term>),
 }
 
-pub type BasicTerm = Term<BasicVar>;
-
-impl Ty {
-    pub fn unparse(&self) -> String {
-        match self {
-            &Ty::Bool => "B".into(),
-            &Ty::Arrow(ref t1,ref t2) => format!("({} -> {})", t1.unparse(),  t2.unparse()),
-            &Ty::Bottom => "_|_".into(),
-        }
-    }
-}
-
-impl<V: VarAbs> Term<V> {
+impl Term {
     pub fn is_val(&self) -> bool {
         match self {
             &Term::True => true,

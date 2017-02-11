@@ -4,9 +4,8 @@ use std::hash::Hash;
 
 pub trait VarAbs: Clone {
     type Var: Display + Clone + PartialEq + Hash + Eq;
-    type VarColl ;
 
-    fn new_va() -> Self;
+    // fn new_va() -> Self;
     fn extend(&mut self, Self::Var);
     fn lookup(&self, Self::Var) -> Option<Self::Var>;
     fn has(&self, v: Self::Var) -> bool {
@@ -24,11 +23,10 @@ pub struct BasicVar {
 
 impl VarAbs for BasicVar {
     type Var = String;
-    type VarColl = HashSet<String>;
 
-    fn new_va() -> BasicVar {
-        BasicVar { vs: HashSet::new() }
-    }
+    // fn new_va() -> BasicVar {
+    //     BasicVar { vs: HashSet::new() }
+    // }
 
     fn extend(&mut self, v: String) {
         self.vs.insert(v);

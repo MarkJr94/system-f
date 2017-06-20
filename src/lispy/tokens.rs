@@ -1,4 +1,4 @@
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Debug)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Debug, Clone)]
 pub enum Token {
     True,
     False,

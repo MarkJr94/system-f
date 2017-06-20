@@ -1,9 +1,10 @@
 [package]
+authors = ["Mark Sinclair II <125axel125@gmail.com>"]
 name = "system-f"
 version = "0.1.0"
-authors = ["Mark Sinclair II <125axel125@gmail.com>"]
 
 [dependencies]
+error-chain = "0.10.0"
 maplit = "0.1.4"
-pom = "2.0.0-alpha"
 nom = "^2.1"
+pom = "2.0.0-alpha"

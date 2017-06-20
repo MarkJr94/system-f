@@ -134,7 +134,7 @@ mod test {
         assert_eq!(r.to_result().unwrap(), tl::abs("x", Ty::Bool, tl::var("x")));
     }
 
-    // #[test]
+    #[test]
     fn test_parse_term() {
 
         let mut p = term(b"#T");

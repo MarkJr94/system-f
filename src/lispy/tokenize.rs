@@ -48,6 +48,10 @@ named!(token (bytes) -> Token, alt!(false_ | true_ | not | if_token | variable |
 
 named!(tokenize(bytes) -> Vec<Token>, ws!(many0!(token)));
 
+pub fn scan(data: &[u8]) -> Result<Vec<Token>, ()> {
+    tokenize(data).to_full_result().map_err(|_|())
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

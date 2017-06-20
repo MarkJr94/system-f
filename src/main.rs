@@ -4,6 +4,8 @@
 #![allow(dead_code)]
 
 #[macro_use]
+extern crate error_chain;
+#[macro_use]
 extern crate maplit;
 extern crate pom;
 #[macro_use]
@@ -13,6 +15,7 @@ mod toplevel;
 mod vars;
 // mod visitor;
 mod core;
+mod errors;
 mod lispy;
 // mod typecheck;
 // mod debrujin;

@@ -1,122 +1,166 @@
 use std::str::from_utf8;
 
-use pom;
-use pom::char_class::hex_digit;
-use pom::combinator::*;
-use pom::Parser;
+use nom;
+use nom::{IResult, ErrorKind, digit, alpha, alphanumeric, multispace};
 
-use ast::term::Ty;
+use core::{Ty, arrow};
+use toplevel as tl;
 use toplevel::Term;
 
-// pub use parens::{parse_Term, parse_TyP};
+type bytes<'a> = &'a [u8];
 
-fn space<'a>() -> Combinator<impl Parser<'a, u8, Output = ()>> {
-    one_of(b" \t\r\n").repeat(0..).discard()
-}
+named!(false_<&[u8], Term>, map!(tag!("#F"), |_| Term::False ));
 
-fn lparen<'a>() -> Combinator<impl Parser<'a, u8, Output = ()>> {
-    sym(b'(').discard()
-}
+named!(true_<&[u8], Term>, map!(tag!("#T"), |_| Term::True ));
 
-fn rparen<'a>() -> Combinator<impl Parser<'a, u8, Output = ()>> {
-    sym(b')').discard()
-}
+named!(bool_<&[u8], Term>,
+    alt!(false_ | true_) );
 
-fn true_<'a>() -> Combinator<impl Parser<'a, u8, Output = Term>> {
-    seq(b"#F").map(|_| Term::True)
-}
+named!(identifier<&[u8], &str>,
+    do_parse!(
+        peek!(alpha) >>
+        var: dbg!(map_res!(alphanumeric, from_utf8)) >>
+        (var)
+    )
+);
 
-fn false_<'a>() -> Combinator<impl Parser<'a, u8, Output = Term>> {
-    seq(b"#F").map(|_| Term::False)
-}
+named!(variable(bytes) -> Term, map!(identifier, |s: &str| Term::Var(s.into())));
 
-fn bool<'a>() -> Combinator<impl Parser<'a, u8, Output = Term>> {
-    true_() | false_()
-}
+named!(not( bytes ) -> Term, map!(tag!("!"), |_| Term::Not));
 
-fn identifier<'a>() -> Combinator<impl Parser<'a, u8, Output = &'a str>> {
-    use pom::char_class::{alpha, alphanum};
+named!(ty( bytes ) -> Ty, alt!(map!(tag!("#B"), |_| Ty::Bool) 
+    | map!(
+        ws!(delimited!(
+            tag!("("), 
+            separated_pair!(ty, tag!("->"), ty),
+            tag!(")")
+        )),
+        |(t1, t2)| arrow(t1, t2))
+    | map!(tag!("_|_"), |_| Ty::Bottom)
+    ));
 
-    let init = is_a(alpha) + is_a(alphanum);
-    let all = init + is_a(alphanum).repeat(..);
-    all.collect().convert(|bytes| from_utf8(bytes))
-}
+named!(app( bytes ) -> Term,
+    map!(
+        ws!(delimited!(
+            tag!("("),
+            pair!(term, term),
+            tag!(")")
+        )),
+        |(f, x)| tl::app(f, x)
+    )
+);
 
-fn not<'a>() -> Combinator<impl Parser<'a, u8, Output = Term>> {
-    sym(b'!').map(|_| Term::Not)
-}
+named!(if__( bytes ) -> Term, map!(
+    ws!(delimited!(
+        tag!("("),
+        do_parse!(
+            tag!("if") >>
+            cond: term >>
+            pass: term >>
+            fail: term >>
+            (cond, pass, fail)
+        ),
+        tag!(")")
+    )),
+    |(cond, pass, fail)| tl::if_(cond, pass, fail)
+));
 
-fn ty_lit<'a>() -> Combinator<impl Parser<'a, u8, Output = Ty>> {
-    seq(b"#B").map(|_| Ty::Bool) | seq(b"_|_").map(|_| Ty::Bottom)
-}
-
-fn ty<'a>() -> Combinator<impl Parser<'a, u8, Output = Ty>> {
-    let full = lparen() - space() + (ty() | ty_lit()) - space() - seq(b"->") - space() + (ty() | ty_lit()) - rparen();
-    full.map(|((_, t1), t2)| {
-        // t1 + 1;
-        Ty::Arrow(Box::new(t1), Box::new(t2))
-    })
-}
-
-fn app<'a>() -> Combinator<impl Parser<'a, u8, Output = Term>> {
-    (lparen() - space() + comb(term) - space() + comb(term) - rparen())
-        .map(|((_, f), x)| Term::App(Box::new(f), Box::new(x)))
-}
-
-fn if_<'a>() -> Combinator<impl Parser<'a, u8, Output = Term>> {
-    (lparen() - space() + comb(term) - space() + comb(term) - space() + comb(term) - rparen())
-        .map(|(((_, cond), pass), fail)| Term::If(Box::new(cond), Box::new(pass), Box::new(fail)))
-}
-
-fn abs<'a>() -> Combinator<impl Parser<'a, u8, Output = Term>> {
-    (lparen() - space() - seq(b"lam ") + identifier() - space() - sym(b':') -
-     space() + ty() - sym(b'.') - space() + comb(term) - space() - rparen())
-        .map(|(((_, var), ty), body)| Term::Abs(String::from(var), ty, Box::new(body)))
-}
-
-
-fn term<'a>(input: &'a [u8], start: usize) -> pom::Result<(Term, usize)> {
-    (abs() | app() | if_() | not() | bool() | identifier().map(|s| Term::Var(String::from(s))))
-        .0
-        .parse(input, start)
-}
-
-pub fn slt<'a>() -> Combinator<impl Parser<'a, u8, Output=Term>> {
-    space() * comb(term) - end()
-}
+named!(abs(bytes) -> Term, map!(
+    ws!(delimited!(
+        dbg!(tag!("(")),
+        do_parse!(
+            tag!("lam") >>
+            var: identifier >>
+            tag!(":") >>
+            typ: ty >>
+            tag!(".") >>
+            body: term >>
+            (var, typ, body)
+        ),
+        tag!(")")
+    )),
+    |(var, typ, body)| tl::abs(var, typ, body)
+));
 
 #[cfg(test)]
 mod test {
-    use super::slt;
+    use super::*;
+    use core::{Ty, arrow};
+    use toplevel as tl;
+    use toplevel::{Term};
+
+    use nom::{ErrorKind, GetOutput, IResult};
+    use nom::Needed::Size;
+
+
+    #[test]
+    fn test_parse_bool() {
+        assert_eq!(bool_(b"#F"), IResult::Done(&[][..], Term::False));
+        assert_eq!(bool_(b"#"), IResult::Incomplete(Size(2)));
+        assert_eq!(bool_(b"#T"), IResult::Done(&[][..], Term::True));
+    }
+
+    #[test]
+    fn test_parse_variable() {
+        assert_eq!(variable(b"a1v1a1r"),
+                   IResult::Done(&[][..], Term::Var("a1v1a1r".into())));
+        assert_eq!(variable(b"2badvar"), IResult::Error(ErrorKind::Alpha));
+        assert_eq!(variable(b"GoodVar"),
+                   IResult::Done(&[][..], Term::Var("GoodVar".into())));
+        assert_eq!(variable(b"almost-goodvar"),
+                   IResult::Done(&b"-goodvar"[..], Term::Var("almost".into())));
+    }
+
+    #[test]
+    fn test_parse_ty() {
+        assert_eq!(ty(b"#B"), IResult::Done(&[][..], Ty::Bool));
+        assert_eq!(ty(b"_|_"), IResult::Done(&[][..], Ty::Bottom));
+        assert_eq!(ty(b"B"), IResult::Error(ErrorKind::Alt));
+        assert_eq!(ty(b"(#B -> #B)"),
+                   IResult::Done(&[][..], arrow(Ty::Bool, Ty::Bool)));
+        assert_eq!(ty(b"(#B->#B)"),
+                   IResult::Done(&[][..], arrow(Ty::Bool, Ty::Bool)));
+        assert_eq!(ty(b"(#B -> (#B -> #B))"),
+                   IResult::Done(&b""[..], arrow(Ty::Bool, arrow(Ty::Bool, Ty::Bool))));
+        assert_eq!(ty(b"((#B->#B)-> (#B -> #B))"),
+                   IResult::Done(&b""[..],
+                                 arrow(arrow(Ty::Bool, Ty::Bool), arrow(Ty::Bool, Ty::Bool))));
+    }
+
+    #[test]
+    fn test_parse_abs() {
+        let r = abs("( lam x: #B. x)".as_bytes());
+        println!("{:?}", r);
+        assert_eq!(r.to_result().unwrap(), tl::abs("x", Ty::Bool, tl::var("x")));
+    }
 
     // #[test]
     fn test_parse_term() {
-        let parser = slt();
-        let np = |raw| parser.parse(raw);
 
-        let mut p = np(b"T");
-        assert!(p.is_ok());
+        let mut p = term(b"#T");
+        assert_eq!(p.to_result().unwrap(), Term::True);
 
-        p = np(b"F");
-        assert!(p.is_ok());
+        p = term(b"#F");
+        assert_eq!(p.to_result().unwrap(), Term::False);
 
-        p = np(b"x");
+        p = term(b"x");
+        assert_eq!(p.to_result().unwrap(), tl::var("x"));
+
+        p = abs(b"( lam x: #B. x)");
         println!("{:?}", p);
-        assert!(p.is_ok());
+        assert_eq!(p.to_result().unwrap(), tl::abs("x", Ty::Bool, tl::var("x")));
 
-        p = np(b"(lam x: #B. x)");
-        assert!(p.is_ok());
+        p = term(b"(if #T #T #F)");
+        assert!(p.is_done());
 
-        p = np(b"(if #T #T #F)");
-        assert!(p.is_ok());
+        p = term(b"(if (! #T) #T #F)");
+        assert!(p.is_done());
 
-        p = np(b"(if (! #T) #T #F)");
-        assert!(p.is_ok());
+        p = term(b"((lam x: (#B -> #B). (x #F)) !)");
+        assert!(p.is_done());
 
-        p = np(b"((lam x: (#B -> #B). (x #F)) !)");
-        assert!(p.is_ok());
-
-        p = np(b"! )");
+        p = term(b"! )");
+        println!("{:?}", p);
         assert!(p.is_err());
     }
 }

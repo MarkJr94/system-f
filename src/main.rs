@@ -1,21 +1,24 @@
 #![feature(conservative_impl_trait)]
+#![feature(slice_patterns, advanced_slice_patterns)]
 #![recursion_limit = "400"]
 #![allow(dead_code)]
 
 #[macro_use]
 extern crate maplit;
 extern crate pom;
+#[macro_use]
+extern crate nom;
 
 mod toplevel;
 mod vars;
 // mod visitor;
-mod parser;
-mod ast;
+mod core;
+mod lispy;
 // mod typecheck;
 // mod debrujin;
 
 use std::io;
-use std::io::{stdin};
+use std::io::stdin;
 
 fn actually() -> io::Result<()> {
     let mut input = String::new();

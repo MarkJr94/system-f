@@ -1,4 +1,4 @@
-use ast::term::{Term, Ty};
+use core::term::{Term, Ty};
 use vars::{VarAbs, BasicVar};
 use visitor as v;
 use visitor::{Visitor};
